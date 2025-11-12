@@ -1,0 +1,132 @@
+<!-- static/index.html -->
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Focus Realtime Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: system-ui, Arial;
+        padding: 16px;
+        background: #0b132b;
+        color: #eaeaea;
+      }
+      .row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .card {
+        background: #1c2541;
+        border-radius: 12px;
+        padding: 16px;
+        flex: 1;
+        min-width: 320px;
+      }
+      h2 {
+        margin: 0 0 8px;
+      }
+      .gauge {
+        height: 24px;
+        background: #3a506b;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .bar {
+        height: 100%;
+        background: #5bc0be;
+        width: 0%;
+      }
+      .kv {
+        display: flex;
+        justify-content: space-between;
+      }
+      canvas {
+        background: #0b132b;
+      }
+      a {
+        color: #5bc0be;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Focus Realtime Dashboard</h1>
+    <div class="row">
+      <div class="card">
+        <h2>Focus</h2>
+        <div class="gauge"><div id="focusBar" class="bar"></div></div>
+        <div class="kv">
+          <span id="focusVal">0.00</span><span id="fps">FPS: 0</span>
+        </div>
+        <p id="meta"></p>
+      </div>
+      <div class="card">
+        <h2>Latest</h2>
+        <div id="latest"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px">
+      <h2>Scores (last ~6s)</h2>
+      <canvas id="chart" height="140"></canvas>
+    </div>
+
+    <script>
+      const ctx = document.getElementById("chart").getContext("2d");
+      const chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [
+            { label: "gaze", data: [], borderWidth: 2 },
+            { label: "neck", data: [], borderWidth: 2 },
+            { label: "emotion", data: [], borderWidth: 2 },
+            { label: "blink", data: [], borderWidth: 2 },
+            { label: "focus", data: [], borderWidth: 3 },
+          ],
+        },
+        options: {
+          responsive: true,
+          animation: false,
+          scales: { y: { min: 0, max: 1 } },
+        },
+      });
+
+      async function fetchLive() {
+        const res = await fetch("/api/live");
+        const j = await res.json();
+        // 라벨 갱신
+        chart.data.labels = j.time.map((t, i) => i);
+        chart.data.datasets[0].data = j.gaze;
+        chart.data.datasets[1].data = j.neck;
+        chart.data.datasets[2].data = j.emotion;
+        chart.data.datasets[3].data = j.blink;
+        chart.data.datasets[4].data = j.focus;
+        chart.update("none");
+
+        // 게이지
+        const fv = (j.focus.length ? j.focus[j.focus.length - 1] : 0) * 100;
+        document.getElementById("focusBar").style.width = fv.toFixed(0) + "%";
+        document.getElementById("focusVal").innerText = (fv / 100).toFixed(2);
+        document.getElementById("fps").innerText =
+          "FPS: " + (j.fps || 0).toFixed(1);
+
+        const latest = j.latest || {};
+        document.getElementById("latest").innerText = JSON.stringify(
+          latest,
+          null,
+          2
+        );
+
+        const metaRes = await fetch("/api/session");
+        const meta = await metaRes.json();
+        document.getElementById(
+          "meta"
+        ).innerText = `Started: ${meta.start_ts} | Frames: ${meta.frames} | Saved rows: ${meta.saved}`;
+      }
+      setInterval(fetchLive, 500);
+    </script>
+  </body>
+</html>

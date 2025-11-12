@@ -1,0 +1,10 @@
+opencv-python
+mediapipe
+numpy
+torch
+torchvision
+timm
+pandas
+matplotlib
+flask
+flask-cors
