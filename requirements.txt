@@ -6,5 +6,5 @@ torchvision
 timm
 pandas
 matplotlib
-flask
-flask-cors
+fastapi
+uvicorn[standard]
